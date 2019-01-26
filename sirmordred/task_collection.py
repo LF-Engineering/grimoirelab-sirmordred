@@ -296,7 +296,10 @@ class TaskRawDataArthurCollection(Task):
 
         backend_args = self._compose_arthur_params(self.backend_section, repo)
         if self.backend_section == 'git':
-            backend_args['gitpath'] = os.path.join(self.REPOSITORY_DIR, repo)
+            transformed_repo = repo.replace("https://","").replace("http://","").replace("/", "__")
+            transformed_gitpath = os.path.join(self.REPOSITORY_DIR, transformed_repo)
+
+            backend_args['gitpath'] = transformed_gitpath
         backend_args['tag'] = self.backend_tag(repo)
 
         ajson = {"tasks": [{}]}
