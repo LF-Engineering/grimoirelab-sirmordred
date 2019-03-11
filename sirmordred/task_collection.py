@@ -239,10 +239,10 @@ class TaskRawDataArthurCollection(Task):
         tag = repo  # the default tag in general
         if 'tag' in self.conf[self.backend_section]:
             tag = self.conf[self.backend_section]['tag']
-        if self.backend_section in ["git", "github"]:
+        if self.backend_section in ["git", "github", "github:pull_request", "github:issue"]:
             # The same repo could appear in git and github data sources
             # Two tasks in arthur can not have the same tag
-            tag = repo + "_" + self.backend_section
+            tag = repo + "_" + self.backend_section.replace(":", "_")
         if self.backend_section in ["mediawiki"]:
             tag = repo.split()[0]
 
