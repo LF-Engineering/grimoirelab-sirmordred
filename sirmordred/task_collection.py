@@ -305,7 +305,7 @@ class TaskRawDataArthurCollection(Task):
             transformed_repo = repo.replace("https://","").replace("http://","").replace("/", "__")
             transformed_gitpath = os.path.join(self.REPOSITORY_DIR, transformed_repo)
 
-            backend_args['gitpath'] = transformed_gitpath
+            backend_args['git_path'] = transformed_gitpath
         backend_args['tag'] = self.backend_tag(repo)
 
         ajson = {"tasks": [{}]}
