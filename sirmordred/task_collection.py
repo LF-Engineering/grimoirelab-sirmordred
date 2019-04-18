@@ -303,8 +303,10 @@ class TaskRawDataArthurCollection(Task):
         backend_args = self._compose_arthur_params(self.backend_section, repo)
         
         if self.backend_section == 'git':
-            transformed_repo = repo.replace("https://","").replace("http://","").replace("/", "__")
-            transformed_gitpath = os.path.join(self.REPOSITORY_DIR, transformed_repo)
+            # Match perceval default
+            base_path = os.path.expanduser('~/.perceval/repositories/')
+            transformed_repo = repo.lstrip('/').replace("https://","").replace("http://","").replace("/", "__")
+            transformed_gitpath = os.path.join(base_path, transformed_repo) + '-git'
             
             backend_args['git_path'] = backend_args['gitpath'] = transformed_gitpath
         
