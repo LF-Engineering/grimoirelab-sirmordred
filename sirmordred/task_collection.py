@@ -214,7 +214,7 @@ class TaskRawDataArthurCollection(Task):
             # larger than ARTHUR_MAX_MEMORY_SIZE
 
             if self.ARTHUR_LAST_MEMORY_SIZE > self.ARTHUR_MAX_MEMORY_SIZE:
-                logger.debug("Items queue full. Not collecting items from redis queue.")
+                logger.warning("Items queue full. Not collecting items from redis queue.")
                 return
 
             logger.info("Collecting items from redis queue")
@@ -239,7 +239,7 @@ class TaskRawDataArthurCollection(Task):
 
             for tag in self.arthur_items:
                 if self.arthur_items[tag]:
-                    logger.debug("Arthur items for %s: %i", tag, len(self.arthur_items[tag]))
+                    logger.info("Arthur items for %s: %i", tag, len(self.arthur_items[tag]))
 
     def backend_tag(self, repo):
         tag = repo  # the default tag in general
@@ -372,18 +372,20 @@ class TaskRawDataArthurCollection(Task):
                 logger.info('[%s] collection configured in arthur for %s', self.backend_section, repo)
 
         def collect_arthur_items(repo):
-            aitems = self.__feed_backend_arthur(repo)
-            if not aitems:
-                return
-            connector = get_connector_from_name(self.backend_section)
-            klass = connector[1]  # Ocean backend for the connector
-            ocean_backend = klass(None)
-            es_col_url = self._get_collection_url()
-            es_index = self.conf[self.backend_section]['raw_index']
-            clean = False
-            elastic_ocean = get_elastic(es_col_url, es_index, clean, ocean_backend)
-            ocean_backend.set_elastic(elastic_ocean)
-            ocean_backend.feed(arthur_items=aitems)
+            for x in range(0, 5):
+                logger.info('[%s] (%d) Feeding  %s', self.backend_section, x, repo)
+                aitems = self.__feed_backend_arthur(repo)
+                if not aitems:
+                    return
+                connector = get_connector_from_name(self.backend_section)
+                klass = connector[1]  # Ocean backend for the connector
+                ocean_backend = klass(None)
+                es_col_url = self._get_collection_url()
+                es_index = self.conf[self.backend_section]['raw_index']
+                clean = False
+                elastic_ocean = get_elastic(es_col_url, es_index, clean, ocean_backend)
+                ocean_backend.set_elastic(elastic_ocean)
+                ocean_backend.feed(arthur_items=aitems)
 
         cfg = self.config.get_conf()
 
