@@ -244,7 +244,7 @@ class TaskRawDataArthurCollection(Task):
 
             for tag in self.arthur_items:
                 if self.arthur_items[tag]:
-                    logger.info("Arthur items for %s: %i", tag, len(self.arthur_items[tag]))
+                    logger.debug("Arthur items for %s: %i", tag, len(self.arthur_items[tag]))
 
     def backend_tag(self, repo):
         tag = repo  # the default tag in general
@@ -282,6 +282,10 @@ class TaskRawDataArthurCollection(Task):
         if tag in self.arthur_items:
             item_count = len(self.arthur_items[tag])
             logger.info("[%s] %d Items for %s.", self.backend_section, item_count, tag)
+
+            if item_count == 0:
+                return None
+
             while self.arthur_items[tag]:
                 yield self.arthur_items[tag].pop()
 
@@ -405,7 +409,7 @@ class TaskRawDataArthurCollection(Task):
             for x in range(0, 5):
                 aitems = self.__feed_backend_arthur(repo)
                 
-                if not aitems or len(aitems) == 0:
+                if not aitems:
                     logger.info('[%s] (%d) %s: No items', self.backend_section, x, repo)
                 
                     return
