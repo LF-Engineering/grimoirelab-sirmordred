@@ -267,6 +267,10 @@ class TaskRawDataArthurCollection(Task):
 
         return total
     
+    def __iterate_arthur_results(self, results):
+        while results:
+            yield results.pop()
+
     def __feed_backend_arthur(self, repo):
         """ Feed Ocean with backend data collected from arthur redis queue"""
 
@@ -283,11 +287,7 @@ class TaskRawDataArthurCollection(Task):
             item_count = len(self.arthur_items[tag])
             logger.info("[%s] %d Items for %s.", self.backend_section, item_count, tag)
 
-            if item_count == 0:
-                return None
-
-            while self.arthur_items[tag]:
-                yield self.arthur_items[tag].pop()
+            return item_count, self.__iterate_arthur_results(self.arthur_items[tag])
 
     def __arthur_delay(self):
         section_conf = self.conf[self.backend_section]
@@ -407,9 +407,9 @@ class TaskRawDataArthurCollection(Task):
 
         def collect_arthur_items(repo):
             for x in range(0, 5):
-                aitems = self.__feed_backend_arthur(repo)
+                item_count, aitems = self.__feed_backend_arthur(repo)
                 
-                if not aitems:
+                if not aitems or item_count == 0:
                     logger.info('[%s] (%d) %s: No items', self.backend_section, x, repo)
                 
                     return

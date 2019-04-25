@@ -86,7 +86,7 @@ class TasksManager(threading.Thread):
         if not self.tasks:
             logger.debug('[thread:%s] Thread %s without tasks', self.thread_id, self.backend_section)
 
-        logger.debug('[thread:%s][%s] Tasks will be executed in this order: %s', self.thread_id,
+        logger.info('[thread:%s][%s] Tasks will be executed in this order: %s', self.thread_id,
                      self.backend_section, self.tasks)
         while not self.stopper.is_set():
             # we give 1 extra second to the stopper, so this loop does
