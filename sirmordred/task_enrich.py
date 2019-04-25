@@ -70,6 +70,8 @@ class TaskEnrich(Task):
         self.last_autorefresh = self.__update_last_autorefresh(days=autorefresh_interval)
         self.last_autorefresh_studies = self.last_autorefresh
         self.last_sortinghat_import = None
+        self.call_counter = 0
+        self.call_count_factor = 5
 
     def select_aliases(self, cfg, backend_section):
 
@@ -348,6 +350,15 @@ class TaskEnrich(Task):
         # Return studies to its original value
         enrich_backend.studies = all_studies
 
+    def __should_execute(self):
+        self.call_counter += 1
+
+        if self.call_counter % self.call_count_factor != 0:
+            return False
+
+        self.call_counter = 0
+        return True
+
     def retain_identities(self, retention_time):
         """Retain the identities in SortingHat based on the `retention_time`
         value declared in the setup.cfg.
@@ -375,7 +386,11 @@ class TaskEnrich(Task):
         if 'enrich' in cfg[self.backend_section] and not cfg[self.backend_section]['enrich']:
             logger.info('%s enrich disabled', self.backend_section)
             return
-
+        
+        if not self.__should_execute():
+            logger.info("[%s] %d skipping enrich", self.backend_section, self.call_counter)
+            return
+        
         # ** START SYNC LOGIC **
         # Check that identities tasks are not active before executing
         while True:
