@@ -410,8 +410,6 @@ class TaskRawDataArthurCollection(Task):
                 item_count, aitems = self.__feed_backend_arthur(repo)
                 
                 if not aitems or item_count == 0:
-                    logger.info('[%s] (%d) %s: No items', self.backend_section, x, repo)
-                
                     return
                 
                 logger.info('[%s] (%d) %s: Feeding', self.backend_section, x, repo)
