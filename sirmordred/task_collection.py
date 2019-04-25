@@ -194,7 +194,6 @@ class TaskRawDataArthurCollection(Task):
         """ Feed Ocean with backend data collected from arthur redis queue"""
 
         with self.ARTHUR_FEED_LOCK:
-
             # This is a expensive operation so don't do it always
             if (time.time() - self.ARTHUR_LAST_MEMORY_CHECK) > 5 * self.ARTHUR_LAST_MEMORY_CHECK_TIME:
                 self.ARTHUR_LAST_MEMORY_CHECK = time.time()
@@ -210,14 +209,20 @@ class TaskRawDataArthurCollection(Task):
                              memory_size, self.ARTHUR_LAST_MEMORY_CHECK_TIME)
                 self.ARTHUR_LAST_MEMORY_SIZE = memory_size
 
+            item_count = self.total_items(self.arthur_items)
+
+            if item_count < self.ARTHUR_REDIS_ITEMS:
+                self.ARTHUR_LAST_MEMORY_SIZE = 0
+
             # Don't feed items from redis if the current python dict is
             # larger than ARTHUR_MAX_MEMORY_SIZE
 
             if self.ARTHUR_LAST_MEMORY_SIZE > self.ARTHUR_MAX_MEMORY_SIZE:
-                logger.warning("Items queue full. Not collecting items from redis queue.")
+                logger.warning("Items queue (%d) full. Not collecting items from redis queue.", item_count)
+                logger.debug("Arthur items available for %s", self.arthur_items.keys())
                 return
 
-            logger.info("Collecting items from redis queue")
+            logger.info("[%s] Collecting items from redis queue", self.backend_section)
 
             db_url = self.config.get_conf()['es_collection']['redis_url']
 
@@ -253,7 +258,15 @@ class TaskRawDataArthurCollection(Task):
             tag = repo.split()[0]
 
         return tag
+    
+    def total_items(self, items):
+        total = 0
 
+        for (q, i) in  items.items():
+            total += len(i)
+
+        return total
+    
     def __feed_backend_arthur(self, repo):
         """ Feed Ocean with backend data collected from arthur redis queue"""
 
@@ -267,9 +280,26 @@ class TaskRawDataArthurCollection(Task):
         logger.debug("Getting arthur items for %s.", tag)
 
         if tag in self.arthur_items:
-            logger.debug("Found items for %s.", tag)
+            item_count = len(self.arthur_items[tag])
+            logger.info("[%s] %d Items for %s.", self.backend_section, item_count, tag)
             while self.arthur_items[tag]:
                 yield self.arthur_items[tag].pop()
+
+    def __arthur_delay(self):
+        section_conf = self.conf[self.backend_section]
+
+        if 'arthur_delay' not in section_conf:
+            return self.ARTHUR_TASK_DELAY
+        
+        try:
+            i = int(section_conf['arthur_delay'])
+
+            if i > self.ARTHUR_TASK_DELAY:
+                return i
+            else:
+                return self.ARTHUR_TASK_DELAY
+        except ValueError:
+            return self.ARTHUR_TASK_DELAY
 
     def __create_arthur_json(self, repo, backend_args):
         """ Create the JSON for configuring arthur to collect data
@@ -319,7 +349,7 @@ class TaskRawDataArthurCollection(Task):
         ajson["tasks"][0]['backend_args'] = backend_args
         ajson["tasks"][0]['category'] = backend_args['category']
         ajson["tasks"][0]['archive'] = {}
-        ajson["tasks"][0]['scheduler'] = {"delay": self.ARTHUR_TASK_DELAY}
+        ajson["tasks"][0]['scheduler'] = {"delay": self.__arthur_delay() }
         # from-date or offset param must be added
         es_col_url = self._get_collection_url()
         es_index = self.conf[self.backend_section]['raw_index']
@@ -342,7 +372,7 @@ class TaskRawDataArthurCollection(Task):
                 ajson["tasks"][0]['backend_args']['offset'] = last_activity
 
         if last_activity:
-            logging.info("Getting raw item with arthur since %s", last_activity)
+            logging.info("[%s] Getting raw item with arthur since %s", self.backend_section, last_activity)
 
         return(ajson)
 
@@ -373,10 +403,15 @@ class TaskRawDataArthurCollection(Task):
 
         def collect_arthur_items(repo):
             for x in range(0, 5):
-                logger.info('[%s] (%d) Feeding  %s', self.backend_section, x, repo)
                 aitems = self.__feed_backend_arthur(repo)
-                if not aitems:
+                
+                if not aitems or len(aitems) == 0:
+                    logger.info('[%s] (%d) %s: No items', self.backend_section, x, repo)
+                
                     return
+                
+                logger.info('[%s] (%d) %s: Feeding', self.backend_section, x, repo)
+                
                 connector = get_connector_from_name(self.backend_section)
                 klass = connector[1]  # Ocean backend for the connector
                 ocean_backend = klass(None)
