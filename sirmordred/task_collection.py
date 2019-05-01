@@ -413,7 +413,7 @@ class TaskRawDataArthurCollection(Task):
         def collect_arthur_items(repo):
             item_count, aitems = self.__feed_backend_arthur(repo)
 
-            logger.info('[%s] (%d) %s: Feeding', self.backend_section, x, repo)
+            logger.info('[%s] %s: Feeding', self.backend_section, repo)
             
             connector = get_connector_from_name(self.backend_section)
             klass = connector[1]  # Ocean backend for the connector
