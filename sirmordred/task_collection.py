@@ -150,14 +150,14 @@ class TaskRawDataCollection(Task):
 class TaskRawDataArthurCollection(Task):
     """ Basic class to control arthur for data collection """
 
-    ARTHUR_TASK_DELAY = 60  # sec, it should be configured per kind of backend
+    ARTHUR_TASK_DELAY = 240  # sec, it should be configured per kind of backend
     REPOSITORY_DIR = "/tmp"
     ARTHUR_FEED_LOCK = Lock()
     ARTHUR_LAST_MEMORY_CHECK = time.time()
     ARTHUR_LAST_MEMORY_CHECK_TIME = 0  # seconds needed to check the memory
     ARTHUR_LAST_MEMORY_SIZE = 0  # size in MB of the python dict
-    ARTHUR_MAX_MEMORY_SIZE = 200  # max size in MB of the python dict
-    ARTHUR_REDIS_ITEMS = 1000  # number of raw items to collect from redis
+    ARTHUR_MAX_MEMORY_SIZE = 1024  # max size in MB of the python dict
+    ARTHUR_REDIS_ITEMS = 50000  # number of raw items to collect from redis
 
     arthur_items = {}  # Hash with tag list with all items collected from arthur queue
 
@@ -335,15 +335,20 @@ class TaskRawDataArthurCollection(Task):
         """
 
         backend_args = self._compose_arthur_params(self.backend_section, repo)
+
+        base_path = os.path.expanduser('~/.perceval/repositories/')
+        transformed_origin = repo.lstrip('/').replace("https://","").replace("http://","").replace("/", "__")
         
         if self.backend_section == 'git':
-            # Match perceval default
-            base_path = os.path.expanduser('~/.perceval/repositories/')
-            transformed_repo = repo.lstrip('/').replace("https://","").replace("http://","").replace("/", "__")
-            transformed_gitpath = os.path.join(base_path, transformed_repo) + '-git'
+            transformed_gitpath = os.path.join(base_path, 'git', transformed_origin) + '-git'
             
             backend_args['git_path'] = backend_args['gitpath'] = transformed_gitpath
         
+        if self.backend_section == 'pipermail':
+            transformed_dirpath = os.path.join(base_path, 'mbox', transformed_origin) + '-mbox'
+            
+            backend_args['mboxes_path'] = backend_args['dirpath'] = transformed_dirpath
+
         backend_args['tag'] = self.backend_tag(repo)
 
         ajson = {"tasks": [{}]}
@@ -406,23 +411,19 @@ class TaskRawDataArthurCollection(Task):
                 logger.info('[%s] collection configured in arthur for %s', self.backend_section, repo)
 
         def collect_arthur_items(repo):
-            for x in range(0, 5):
-                item_count, aitems = self.__feed_backend_arthur(repo)
-                
-                if not aitems or item_count == 0:
-                    return
-                
-                logger.info('[%s] (%d) %s: Feeding', self.backend_section, x, repo)
-                
-                connector = get_connector_from_name(self.backend_section)
-                klass = connector[1]  # Ocean backend for the connector
-                ocean_backend = klass(None)
-                es_col_url = self._get_collection_url()
-                es_index = self.conf[self.backend_section]['raw_index']
-                clean = False
-                elastic_ocean = get_elastic(es_col_url, es_index, clean, ocean_backend)
-                ocean_backend.set_elastic(elastic_ocean)
-                ocean_backend.feed(arthur_items=aitems)
+            item_count, aitems = self.__feed_backend_arthur(repo)
+
+            logger.info('[%s] (%d) %s: Feeding', self.backend_section, x, repo)
+            
+            connector = get_connector_from_name(self.backend_section)
+            klass = connector[1]  # Ocean backend for the connector
+            ocean_backend = klass(None)
+            es_col_url = self._get_collection_url()
+            es_index = self.conf[self.backend_section]['raw_index']
+            clean = False
+            elastic_ocean = get_elastic(es_col_url, es_index, clean, ocean_backend)
+            ocean_backend.set_elastic(elastic_ocean)
+            ocean_backend.feed(arthur_items=aitems)
 
         cfg = self.config.get_conf()
 
