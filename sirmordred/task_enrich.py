@@ -73,6 +73,9 @@ class TaskEnrich(Task):
         self.call_counter = 0
         self.call_count_factor = 5
 
+        if 'enrich_interval' in self.conf[self.backend_section]:
+            self.call_count_factor = int(self.conf[self.backend_section]['enrich_interval'])
+
     def select_aliases(self, cfg, backend_section):
 
         aliases_file = cfg['general']['aliases_file']
